@@ -12,4 +12,6 @@ jobs:
   do_stuff:
     runs-on: ubuntu-latest
     steps:
-      - echo ${{ secrets.TEST_SECRET }}
+      - name: some_step
+        run: |
+           echo ${{ secrets.TEST_SECRET }}
