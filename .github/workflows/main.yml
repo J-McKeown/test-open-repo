@@ -1,0 +1,12 @@
+name: Pull Request Target PoC
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+jobs:
+  say_hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo PR details
+        run: echo -e "HEAD.REF => ${{ github.event.pull_request.head.ref }} \n NUMBER (PR-UID)=> ${{ github.event.pull_request.number }} \n COMMIT-SHA => ${{ github.event.pull_request.head.sha }} \n REF => ${{ github.ref }} \n BASE_REF => ${{ github.base_ref }}"
