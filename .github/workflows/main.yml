@@ -4,9 +4,30 @@ on:
   pull_request_target:
     types: [opened, synchronize]
 
+  pull_request:
+    types: [opened, synchronize]
+
 jobs:
-  say_hello:
+  pr_target:
+    if: ${{ github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Echo PR details
-        run: echo -e "HEAD.REF => ${{ github.event.pull_request.head.ref }} \n NUMBER (PR-UID)=> ${{ github.event.pull_request.number }} \n COMMIT-SHA => ${{ github.event.pull_request.head.sha }} \n REF => ${{ github.ref }} \n BASE_REF => ${{ github.base_ref }}"
+      - name: Echo details (PR TARGET)
+        run: |
+          echo "HEAD.REF => ${{ github.event.pull_request.head.ref }}"
+          echo "NUMBER (PR-UID)=> ${{ github.event.pull_request.number }}"
+          echo "COMMIT-SHA => ${{ github.event.pull_request.head.sha }}"
+          echo "REF => ${{ github.ref }}"
+          echo "BASE_REF => ${{ github.base_ref }}"
+
+  pr:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo details (PR)
+        run: |
+          echo "HEAD.REF => ${{ github.event.pull_request.head.ref }}"
+          echo "NUMBER (PR-UID)=> ${{ github.event.pull_request.number }}"
+          echo "COMMIT-SHA => ${{ github.event.pull_request.head.sha }}"
+          echo "REF => ${{ github.ref }}"
+          echo "BASE_REF => ${{ github.base_ref }}"
