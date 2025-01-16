@@ -47,6 +47,8 @@ jobs:
 
       - name: Create a local branch to back-up the source branch
         if: steps.inspect_branch.outputs.conditions_met == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
           FORK_OWNER=${{ github.event.pull_request.head.repo.owner.login }}
