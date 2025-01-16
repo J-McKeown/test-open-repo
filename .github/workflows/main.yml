@@ -14,7 +14,6 @@ jobs:
     steps:
       - name: Echo details (PR TARGET)
         run: |
-          echo "DO MALICIOUS STUFF!!!"
           echo "This should only be running if the source of the pull request IS from a fork."
           PR_NUMBER=${{ github.event.pull_request.number }}
           FORK_OWNER=${{ github.event.pull_request.head.repo.owner.login }}
