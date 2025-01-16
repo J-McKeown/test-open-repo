@@ -13,7 +13,7 @@ env:
 
 jobs:
   create_branch:
-    if: ${{ env.SOURCE_IS_FORK && env.RUN_ON_MAIN }}
+    if: ${{ github.event.pull_request.head.repo.fork && github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out base repository
@@ -30,7 +30,22 @@ jobs:
           git remote add fork "$FORK_REPO"
           git fetch fork "$FORK_BRANCH"
 
+      - name: Inspect the fork branch
+        id: inspect_branch
+        run: |
+          FORK_BRANCH=${{ github.event.pull_request.head.ref }}
+          echo "Checking content of fork branch: $FORK_BRANCH"
+          git checkout "fork/$FORK_BRANCH"
+
+          SOME_CONDITION=true
+          if [ $SOME_CONDITION ]; then
+            echo "conditions_met=true" >> $GITHUB_OUTPUT
+          else
+            echo "conditions_met=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create a local branch to back-up the source branch
+        if: steps.inspect_branch.outputs.conditions_met == 'true'
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
           FORK_OWNER=${{ github.event.pull_request.head.repo.owner.login }}
@@ -46,7 +61,7 @@ jobs:
           git push origin "$NEW_BRANCH"
 
   pr_target:
-    if: ${{ env.RUN_ON_MAIN }}
+    if: ${{ github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
     steps:
       - name: Echo details (PR TARGET)
