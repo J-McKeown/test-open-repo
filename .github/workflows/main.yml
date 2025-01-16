@@ -7,14 +7,50 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+env:
+  SOURCE_IS_FORK: ${{ github.event.pull_request.head.repo.fork }}
+  RUN_ON_MAIN: ${{ github.event_name == 'pull_request_target' }}
+
 jobs:
+  create_branch:
+    if: ${{ env.SOURCE_IS_FORK && env.RUN_ON_MAIN }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out base repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: main
+
+      - name: Fetch source branch from fork
+        run: |
+          FORK_REPO=${{ github.event.pull_request.head.repo.clone_url }}
+          FORK_BRANCH=${{ github.event.pull_request.head.ref }}
+          echo "Fetching the source branch from the fork..."
+          git remote add fork "$FORK_REPO"
+          git fetch fork "$FORK_BRANCH"
+
+      - name: Create a local branch to back-up the source branch
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          FORK_OWNER=${{ github.event.pull_request.head.repo.owner.login }}
+          FORK_BRANCH=${{ github.event.pull_request.head.ref }}
+          NEW_BRANCH="pr${PR_NUMBER}_${FORK_OWNER}-${FORK_BRANCH}"
+
+          echo "Creating new branch: $NEW_BRANCH"
+
+          # Create a new branch
+          git checkout -b "$NEW_BRANCH" "fork/$FORK_BRANCH"
+
+          # Push the branch to the remote
+          git push origin "$NEW_BRANCH"
+
   pr_target:
-    if: ${{ github.event.pull_request.head.repo.fork && github.event_name == 'pull_request_target' }}
+    if: ${{ env.RUN_ON_MAIN }}
     runs-on: ubuntu-latest
     steps:
       - name: Echo details (PR TARGET)
         run: |
-          echo "This should only be running if the source of the pull request IS from a fork."
           PR_NUMBER=${{ github.event.pull_request.number }}
           FORK_OWNER=${{ github.event.pull_request.head.repo.owner.login }}
           FORK_BRANCH=${{ github.event.pull_request.head.ref }}
@@ -23,16 +59,9 @@ jobs:
           echo "FORK_BRANCH => ${FORK_BRANCH}"
           NEW_BRANCH="pr${PR_NUMBER}_${FORK_OWNER}-${FORK_BRANCH}"
           echo "NEW_BRANCH => ${NEW_BRANCH}"
-
-  pr:
-    if: ${{ !github.event.pull_request.head.repo.fork && github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Echo details (PR)
-        run: |
-          echo "This should only be running if the source of the pull request is NOT from a fork."
+          echo ""
+          echo "Further PR information..."
           echo "HEAD.REF => ${{ github.event.pull_request.head.ref }}"
-          echo "NUMBER (PR-UID)=> ${{ github.event.pull_request.number }}"
           echo "COMMIT-SHA => ${{ github.event.pull_request.head.sha }}"
           echo "REF => ${{ github.ref }}"
           echo "BASE_REF => ${{ github.base_ref }}"
