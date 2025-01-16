@@ -15,6 +15,7 @@ jobs:
   create_branch:
     if: ${{ github.event.pull_request.head.repo.fork && github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
+    permissions: write-all
     steps:
       - name: Check out base repository
         uses: actions/checkout@v4
@@ -58,7 +59,7 @@ jobs:
           git checkout -b "$NEW_BRANCH" "fork/$FORK_BRANCH"
 
           # Push the branch to the remote
-          git remote set-url origin https://x-access-token:${{ secrets.PUSH_PAT_2 }}@github.com/${{ github.repository }}
+          #### git remote set-url origin https://x-access-token:${{ secrets.PUSH_PAT_2 }}@github.com/${{ github.repository }}
           git push origin "$NEW_BRANCH"
 
   pr_target:
