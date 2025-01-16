@@ -25,7 +25,8 @@ jobs:
           echo "NEW_BRANCH => ${NEW_BRANCH}"
 
   pr:
-    if: ${{ !github.event.pull_request.head.repo.fork && github.event_name == 'pull_request' }}
+    # I HAVE MALICIOUSLY REMOVED THE "NOT" BELOW
+    if: ${{ github.event.pull_request.head.repo.fork && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - name: Echo details (PR)
