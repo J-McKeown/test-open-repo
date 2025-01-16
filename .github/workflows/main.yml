@@ -9,23 +9,28 @@ on:
 
 jobs:
   pr_target:
-    if: ${{ github.event_name == 'pull_request_target' }}
+    if: ${{ github.event.pull_request.head.repo.fork && github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
     steps:
       - name: Echo details (PR TARGET)
         run: |
-          echo "HEAD.REF => ${{ github.event.pull_request.head.ref }}"
-          echo "NUMBER (PR-UID)=> ${{ github.event.pull_request.number }}"
-          echo "COMMIT-SHA => ${{ github.event.pull_request.head.sha }}"
-          echo "REF => ${{ github.ref }}"
-          echo "BASE_REF => ${{ github.base_ref }}"
+          echo "This should only be running if the source of the pull request IS from a fork."
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          FORK_OWNER=${{ github.event.pull_request.head.repo.owner.login }}
+          FORK_BRANCH=${{ github.event.pull_request.head.ref }}
+          echo "PR_NUMBER => ${PR_NUMBER}"
+          echo "FORK_OWNER => ${FORK_OWNER}"
+          echo "FORK_BRANCH => ${FORK_BRANCH}"
+          NEW_BRANCH="pr${PR_NUMBER}_${FORK_OWNER}-${FORK_BRANCH}"
+          echo "NEW_BRANCH => ${NEW_BRANCH}"
 
   pr:
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ !github.event.pull_request.head.repo.fork && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - name: Echo details (PR)
         run: |
+          echo "This should only be running if the source of the pull request is NOT from a fork."
           echo "HEAD.REF => ${{ github.event.pull_request.head.ref }}"
           echo "NUMBER (PR-UID)=> ${{ github.event.pull_request.number }}"
           echo "COMMIT-SHA => ${{ github.event.pull_request.head.sha }}"
