@@ -7,6 +7,8 @@ on:
 jobs:
   process_fork_pr:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Check out base repo
         uses: actions/checkout@v4
