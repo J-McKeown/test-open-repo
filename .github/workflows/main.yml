@@ -12,6 +12,8 @@ jobs:
   trigger_branch_creation:
     if: ${{ github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Trigger Branch Creation
         env:
