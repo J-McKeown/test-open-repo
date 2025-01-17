@@ -12,75 +12,25 @@ env:
   RUN_ON_MAIN: ${{ github.event_name == 'pull_request_target' }}
 
 jobs:
-  create_branch:
-    if: ${{ !github.event.pull_request.head.repo.fork && github.event_name == 'pull_request_target' }}
+  trigger_branch_creation:
     runs-on: ubuntu-latest
-    permissions: write-all
     steps:
-      - name: Check out base repository
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository }}
-          ref: main
-
-      - name: Fetch source branch from fork
-        run: |
-          FORK_REPO=${{ github.event.pull_request.head.repo.clone_url }}
-          FORK_BRANCH=${{ github.event.pull_request.head.ref }}
-          echo "Fetching the source branch from the fork..."
-          git remote add fork "$FORK_REPO"
-          git fetch fork "$FORK_BRANCH"
-
-      - name: Inspect the fork branch
-        id: inspect_branch
-        run: |
-          FORK_BRANCH=${{ github.event.pull_request.head.ref }}
-          echo "Checking content of fork branch: $FORK_BRANCH"
-          git checkout "fork/$FORK_BRANCH"
-
-          SOME_CONDITION=true
-          if [ $SOME_CONDITION ]; then
-            echo "conditions_met=true" >> $GITHUB_OUTPUT
-          else
-            echo "conditions_met=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create a local branch to back-up the source branch
-        if: steps.inspect_branch.outputs.conditions_met == 'true'
+      - name: Trigger Branch Creation
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
-          FORK_OWNER=${{ github.event.pull_request.head.repo.owner.login }}
+          FORK_REPO=${{ github.event.pull_request.head.repo.clone_url }}
           FORK_BRANCH=${{ github.event.pull_request.head.ref }}
-          NEW_BRANCH="pr${PR_NUMBER}_${FORK_OWNER}-${FORK_BRANCH}"
-
-          echo "Creating new branch: $NEW_BRANCH"
-
-          # Create a new branch
-          git checkout -b "$NEW_BRANCH" "fork/$FORK_BRANCH"
-
-          # Push the branch to the remote
-          #### git remote set-url origin https://x-access-token:${{ secrets.PUSH_PAT_2 }}@github.com/${{ github.repository }}
-          git push origin "$NEW_BRANCH"
-
-  pr_target:
-    if: ${{ github.event_name == 'pull_request_target' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Echo details (PR TARGET)
-        run: |
-          PR_NUMBER=${{ github.event.pull_request.number }}
           FORK_OWNER=${{ github.event.pull_request.head.repo.owner.login }}
-          FORK_BRANCH=${{ github.event.pull_request.head.ref }}
-          echo "PR_NUMBER => ${PR_NUMBER}"
-          echo "FORK_OWNER => ${FORK_OWNER}"
-          echo "FORK_BRANCH => ${FORK_BRANCH}"
-          NEW_BRANCH="pr${PR_NUMBER}_${FORK_OWNER}-${FORK_BRANCH}"
-          echo "NEW_BRANCH => ${NEW_BRANCH}"
-          echo ""
-          echo "Further PR information..."
-          echo "HEAD.REF => ${{ github.event.pull_request.head.ref }}"
-          echo "COMMIT-SHA => ${{ github.event.pull_request.head.sha }}"
-          echo "REF => ${{ github.ref }}"
-          echo "BASE_REF => ${{ github.base_ref }}"
+
+          echo "Triggering backup branch creation with the following details:"
+          echo "PR_NUMBER: $PR_NUMBER"
+          echo "FORK_REPO: $FORK_REPO"
+          echo "FORK_BRANCH: $FORK_BRANCH"
+          echo "FORK_OWNER: $FORK_OWNER"
+
+          curl -X POST -H "Accept: application/vnd.github+json" \
+               -H "Authorization: Bearer $GITHUB_TOKEN" \
+               https://api.github.com/repos/${{ github.repository }}/dispatches \
+               -d '{"event_type":"backup-branch","client_payload":{"pr_number":'"$PR_NUMBER"',"fork_repo":"'"$FORK_REPO"'","fork_branch":"'"$FORK_BRANCH"'","fork_owner":"'"$FORK_OWNER"'"}}'

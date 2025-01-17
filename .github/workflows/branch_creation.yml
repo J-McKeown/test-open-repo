@@ -1,0 +1,70 @@
+name: Create Backup Branch
+
+on:
+  repository_dispatch:
+    types: [backup-branch]
+
+jobs:
+  process_fork_pr:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Check out base repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: main
+    
+      - name: Extract Triggering Pipeline Data
+        run: |
+          echo "Echo information from triggering pipeline..."
+          PR_NUMBER=${{ github.event.client_payload.pr_number }}
+          FORK_REPO=${{ github.event.client_payload.fork_repo }}
+          FORK_BRANCH=${{ github.event.client_payload.fork_branch }}
+          FORK_OWNER=${{ github.event.client_payload.fork_owner }}
+
+          echo "PR_NUMBER: $PR_NUMBER"
+          echo "FORK_REPO: $FORK_REPO"
+          echo "FORK_BRANCH: $FORK_BRANCH"
+          echo "FORK_OWNER: $FORK_OWNER"
+
+      - name: Fetch source branch from fork
+        run: |
+          FORK_REPO=${{ github.event.client_payload.fork_repo }}
+          FORK_BRANCH=${{ github.event.client_payload.fork_branch }}
+          echo "Fetching source branch from fork..."
+          git remote add fork "$FORK_REPO"
+          git fetch fork "$FORK_BRANCH"
+
+      - name: Inspect the fork branch
+        id: inspect_branch
+        run: |
+          FORK_BRANCH=${{ github.event.client_payload.fork_branch }}
+          echo "Checking fork content: $FORK_BRANCH"
+          git checkout "fork/$FORK_BRANCH"
+
+          # Perform some checks
+          SOME_CONDITION=true
+          if [ $SOME_CONDITION = true ]; then
+            echo "conditions_met=true" >> $GITHUB_OUTPUT
+          else
+            echo "conditions_met=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create a local branch to back up the source branch
+        if: steps.inspect_branch.outputs.conditions_met == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.client_payload.pr_number }}
+          FORK_OWNER=${{ github.event.client_payload.fork_owner }}
+          FORK_BRANCH=${{ github.event.client_payload.fork_branch }}
+          NEW_BRANCH="pr${PR_NUMBER}_${FORK_OWNER}-${FORK_BRANCH}"
+
+          echo "Creating new branch: $NEW_BRANCH"
+
+          # Create a new branch
+          git checkout -b "$NEW_BRANCH" "fork/$FORK_BRANCH"
+
+          # Push the branch to the remote
+          git push -u origin "$NEW_BRANCH"
