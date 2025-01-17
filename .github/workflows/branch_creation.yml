@@ -5,7 +5,7 @@ on:
     types: [backup-branch]
 
 jobs:
-  process_fork_pr:
+  inspect_fork:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -41,19 +41,73 @@ jobs:
         id: inspect_branch
         run: |
           FORK_BRANCH=${{ github.event.client_payload.fork_branch }}
-          echo "Checking fork content: $FORK_BRANCH"
+          echo "Checking out source branch..."
           git checkout "fork/$FORK_BRANCH"
+          echo "Checking for workflow changes..."
+          WORKFLOW_DIFF=$(git diff origin/main --name-only -- .github/workflows || true)
 
-          # Perform some checks
-          SOME_CONDITION=true
-          if [ $SOME_CONDITION = true ]; then
-            echo "conditions_met=true" >> $GITHUB_OUTPUT
+          if [ -n $WORKFLOW_DIFF ]; then
+            echo -e "Detected changes in the following files:\n$WORKFLOW_CHANGES"
+            echo "workflow_changes_detected=true" >> $GITHUB_OUTPUT
           else
-            echo "conditions_met=false" >> $GITHUB_OUTPUT
+            echo "workflow_changes_detected=false" >> $GITHUB_OUTPUT
           fi
 
+    outputs:
+      workflow_changes_detected: ${{ steps.inspect_branch.outputs.workflow_changes_detected }}
+      pr_number: ${{ github.event.client_payload.pr_number }}
+      fork_repo: ${{ github.event.client_payload.fork_repo }}
+      fork_branch: ${{ github.event.client_payload.fork_branch }}
+      fork_owner: ${{ github.event.client_payload.fork_owner }}
+      
+
+  require_approval:
+    needs:
+      - inspect_fork
+    if: needs.inspect_fork.outputs.workflow_changes_detected == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approval
+        run: |
+          echo "This text should be visible ONLY if a workflow was changed AND approval was granted at this step."
+
+      - name: Checkout base repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: main
+
       - name: Create a local branch to back up the source branch
-        if: steps.inspect_branch.outputs.conditions_met == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.client_payload.pr_number }}
+          FORK_OWNER=${{ github.event.client_payload.fork_owner }}
+          FORK_BRANCH=${{ github.event.client_payload.fork_branch }}
+          NEW_BRANCH="pr${PR_NUMBER}_${FORK_OWNER}-${FORK_BRANCH}"
+
+          echo "Creating new branch: $NEW_BRANCH"
+
+          # Create a new branch
+          git checkout -b "$NEW_BRANCH" "fork/$FORK_BRANCH"
+
+          # Push the branch to the remote
+          git push -u origin "$NEW_BRANCH"
+
+
+  create_branch:
+    needs:
+      - inspect_fork
+    if: needs.inspect_fork.outputs.workflow_changes_detected == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: main
+
+      - name: Create a local branch to back up the source branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
